@@ -32,3 +32,45 @@
 
 HD4 remains in planning mode. No infrastructure deployed yet.
 
+## 2026-03-04 — HD4 Phase 1: Forest Root Domain Controller Established
+
+Tonight I successfully completed the initial infrastructure deployment for HaleDistrict HD4 by bringing the first domain controller online.
+
+Work began with a newly created VM **HD4-DC01**, cloned from the Windows Server template. During initial configuration it was discovered that the template still contained residual domain membership from the previous HD3 environment. The server was removed from the stale domain configuration and reset to a clean **WORKGROUP** state before continuing the build.
+
+Once sanitized, the server was configured with a static infrastructure address:
+
+* **Hostname:** HD4-DC01
+* **IP:** 10.0.0.10 /24
+* **Gateway:** 10.0.0.1
+* **DNS:** 127.0.0.1
+
+The **Active Directory Domain Services** role was installed along with required management tools (Group Policy Management and AD administrative utilities). After installation completed, the server was promoted to the **forest root domain controller** for a new forest:
+
+**Domain:** `haledistrict.local`
+
+Promotion completed successfully and the server rebooted automatically. After reboot, the system was verified operational by launching **Active Directory Users and Computers**, confirming the new domain structure was present and functioning.
+
+This marks the successful establishment of the **HD4 Active Directory forest**, which now provides the core directory, authentication, DNS, and Group Policy infrastructure for the environment.
+
+### Current HD4 Infrastructure State
+
+* **HD4-DC01**
+
+  * Forest Root Domain Controller
+  * DNS Server
+  * Global Catalog
+  * Domain: `haledistrict.local`
+
+### Notes / Observations
+
+The cloning issue revealed that the current Windows Server template was captured after domain membership had already been established. In a future session the golden image will be rebuilt using **Sysprep /generalize** to ensure templates remain fully pristine before deployment.
+
+### Next Planned Steps
+
+1. Validate DNS zones and run **dcdiag** health checks
+2. Establish the baseline **HaleDistrict OU structure**
+3. Build **HD4-RT01** (router / gateway infrastructure)
+4. Build **HD4-FS01** (file services and script repository)
+
+HD4 infrastructure foundation is now operational.
