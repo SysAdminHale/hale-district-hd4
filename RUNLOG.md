@@ -74,3 +74,7 @@ The cloning issue revealed that the current Windows Server template was captured
 4. Build **HD4-FS01** (file services and script repository)
 
 HD4 infrastructure foundation is now operational.
+
+## 2026-03-05 DC01 final validation
+
+Validated health of HD4-DC01 using dcdiag, DNS resolution tests, SYSVOL verification, and NETLOGON share confirmation. All core Active Directory services are operating normally for a single-domain-controller forest.
