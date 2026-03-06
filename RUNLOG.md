@@ -80,3 +80,88 @@ HD4 infrastructure foundation is now operational.
 ## 2026-03-05 DC01 final validation
 
 Validated health of HD4-DC01 using dcdiag, DNS resolution tests, SYSVOL verification, and NETLOGON share confirmation. All core Active Directory services are operating normally for a single-domain-controller forest.
+
+## 2026-03-05 — FS01 Domain Join and File Server Role Installation
+
+Objective
+
+Bring HD4-FS01 online as the first member server in the HD4 environment and prepare it to host shared resources for the HaleDistrict domain.
+
+Actions Completed
+
+Verified network connectivity and DNS resolution from FS01 to the domain controller.
+
+ping 10.0.0.10
+
+ping HD4-DC01
+
+ping haledistrict.local
+
+Successfully joined HD4-FS01 to the haledistrict.local domain.
+
+Confirmed successful domain join with the message:
+
+"Welcome to the haledistrict.local domain."
+
+Logged back in using domain administrator credentials.
+
+Attempted to install the File Server role using Server Manager GUI, but the wizard became blocked at the Features screen with the Next button disabled (same behavior observed previously in HD3).
+
+Switched to PowerShell approach, which bypassed the GUI wizard.
+
+PowerShell Installation
+
+Executed in Windows PowerShell (not PowerShell 7):
+
+Install-WindowsFeature -Name FS-FileServer -IncludeManagementTools
+
+Result:
+
+Success : True
+Restart Needed : No
+Feature Result : {File and iSCSI Services, File Server}
+
+This confirmed the File Server role installed successfully on HD4-FS01.
+
+Current HD4 Infrastructure State
+HD4-DC01   Domain Controller / DNS
+HD4-FS01   Domain Member Server / File Server
+
+Network:
+
+10.0.0.10   HD4-DC01
+10.0.0.11   HD4-FS01
+
+Domain:
+
+haledistrict.local
+Observations
+
+The Server Manager wizard again exhibited the “Next button disabled” issue on the Features page.
+
+Using PowerShell to install roles proved more reliable and repeatable.
+
+This reinforces the practice of preferring PowerShell for infrastructure configuration tasks.
+
+Next Steps (Planned for Next Session)
+
+Add a dedicated data disk to HD4-FS01 in Hyper-V.
+
+Initialize the disk and create a DATA volume (D:).
+
+Create HaleDistrict share structure:
+
+D:\Shares
+D:\Shares\Scripts
+D:\Shares\Students
+D:\Shares\Teachers
+
+Publish first SMB share:
+
+\\HD4-FS01\Scripts
+
+Begin preparing FS01 as the central script repository for workstation baseline automation.
+
+Status
+
+HD4-FS01 is now fully domain-joined and operating as a File Server. Core infrastructure for HD4 is functioning normally and ready for the storage configuration phase in the next session.
