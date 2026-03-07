@@ -165,3 +165,37 @@ Begin preparing FS01 as the central script repository for workstation baseline a
 Status
 
 HD4-FS01 is now fully domain-joined and operating as a File Server. Core infrastructure for HD4 is functioning normally and ready for the storage configuration phase in the next session.
+
+## 2026-03-06 FS01 Storage Layer complete
+
+FS01 Storage Layer Completed
+
+Initialized DATA disk (D:) for HD4-FS01 and created the HaleDistrict folder hierarchy.
+Established root NTFS permission baseline on D:\HaleDistrict using domain-based access control:
+- Domain Admins: Full Control
+- Domain Users: Read & Execute
+- SYSTEM and Administrators retained for local control
+- CREATOR OWNER retained for object ownership behavior
+
+Configured Scripts$ share for centralized script distribution with:
+- Domain Admins: Full Control
+- Domain Computers: Read & Execute
+
+This establishes the file server foundation for HD4, enabling centralized script distribution and future departmental share structures while maintaining clean NTFS inheritance from the HaleDistrict root.
+
+## 2026-03-07 RT01 configured and persistent
+
+RT01 Network Persistence Implemented
+
+Configured Netplan to make RT01 interface configuration persistent.
+
+eth0: DHCP from upstream home router (WAN)
+eth1: Static 10.0.0.1/24 (HD4 LAN gateway)
+
+Validated configuration by rebooting RT01 and confirming:
+
+- eth1 automatically comes up
+- gateway address persists
+- routing and NAT remain functional
+
+RT01 now behaves as a persistent router appliance for the HD4 environment.
