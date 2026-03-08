@@ -199,3 +199,24 @@ Validated configuration by rebooting RT01 and confirming:
 - routing and NAT remain functional
 
 RT01 now behaves as a persistent router appliance for the HD4 environment.
+
+## 2026-03-07 ADM01 built and joine HD4
+
+Work today focused on completing the initial build and configuration of **HD4-ADM01**, the administrative workstation for the HD4 HaleDistrict environment.
+
+The VM was successfully created and configured from the Windows 11 base image. The machine was renamed **HD4-ADM01**, networking verified, and the system was joined to the **haledistrict.local** domain. After reboot, domain authentication was confirmed by logging in as `haledistrict\administrator` and verifying identity using `whoami`.
+
+Administrative tooling was then installed and verified, including **RSAT components required for Active Directory administration**. This established ADM01 as the primary administrative workstation for managing the HD4 environment.
+
+An attempt was made to convert the system into a reusable **golden image for administrative workstations** using **Sysprep with OOBE + Generalize**. The system was temporarily removed from the domain and Sysprep validation troubleshooting was attempted, including removal of Windows AppX provisioning packages that commonly block Sysprep in Windows 11 environments. Despite remediation attempts, Sysprep continued to fail validation.
+
+At this point a decision was made to **abandon the golden image conversion for this specific VM** and instead keep the system as the operational **HD4-ADM01 administrative workstation**. The machine was successfully rejoined to the domain and domain authentication was again verified via PowerShell.
+
+Key takeaway: administrative workstation golden images should ideally be created **before domain joining and mid-build changes**. A clean golden image for Windows 11 administrative systems may be created later in a dedicated build session.
+
+HD4-ADM01 is now fully operational and serving as the primary management workstation for the HaleDistrict HD4 environment.
+
+Next planned work:
+• Continue infrastructure configuration using ADM01
+• Begin preparing workstation deployment strategy for TEACH and STUD machines
+• Revisit Windows 11 golden image creation in a clean build workflow
