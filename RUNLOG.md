@@ -220,3 +220,69 @@ Next planned work:
 • Continue infrastructure configuration using ADM01
 • Begin preparing workstation deployment strategy for TEACH and STUD machines
 • Revisit Windows 11 golden image creation in a clean build workflow
+
+## 2026-03-08 — HD4 Workstation Deployment Pipeline Validated (HD4-TEACH01)
+
+### Objective
+Validate the HD4 workstation deployment workflow using the Windows 11 golden image and differencing disks.  
+The goal was to confirm that new workstations can be rapidly deployed, renamed, domain joined, and placed into the correct OU with minimal manual configuration.
+
+### Steps Performed
+
+1. Created new VM **HD4-TEACH01** on host **HD-WS01** using the Hyper-V New Virtual Machine Wizard.
+   - Generation: 2
+   - Memory: 4096 MB
+   - Network: HD4-LAN
+   - Virtual disk: attached later (differencing model)
+
+2. Created a **differencing disk** using the Hyper-V Virtual Hard Disk Wizard:
+   - Disk name: `HD4-TEACH01.vhdx`
+   - Disk type: Differencing
+   - Location: `C:\HyperV\VMs\HD4-TEACH01`
+   - Parent disk: `C:\HyperV\GoldenImages\GOLD-WIN11-BUILD.vhdx`
+
+3. Attached the differencing disk to the **SCSI controller** of HD4-TEACH01 and started the VM.
+
+4. Verified that the workstation booted successfully from the golden image.
+
+5. Renamed the workstation using PowerShell:
+
+   Rename-Computer -NewName "HD4-TEACH01" -Restart
+
+6. Joined the workstation to the **haledistrict.local** domain:
+
+   Add-Computer -DomainName "haledistrict.local" -Credential haledistrict\Administrator -Restart
+
+7. Verified the computer object appeared in Active Directory.
+
+8. Moved the computer object to the correct OU:
+
+   HD4
+     Computers
+       Workstations
+
+### Result
+
+The HD4 workstation provisioning pipeline was successfully validated.
+
+The following architecture is now operational:
+
+Golden Image
+    GOLD-WIN11-BUILD.vhdx
+        │
+        └── HD4-TEACH01.vhdx (differencing disk)
+
+This confirms that HD4 can rapidly deploy new workstations without reinstalling the operating system, while maintaining a clean, immutable golden image.
+
+### Notes
+
+- The workstation automatically synchronized time with the domain after joining Active Directory.
+- DNS resolution and domain discovery functioned correctly through the HD4 network stack (RT01 → DC01).
+- This workflow will be reused for additional workstations such as **HD4-STUD01**, **HD4-STUD02**, and future teacher machines.
+
+### Next Steps
+
+1. Deploy additional workstations using the golden image pipeline.
+2. Begin applying and testing **HD4 workstation GPOs**.
+3. Validate baseline workstation configuration and security policies.
+4. Continue documenting workstation lifecycle procedures for HD4.
