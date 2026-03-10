@@ -300,3 +300,84 @@ HD4-ADM01 – Running
 HD4-RT01  – Running
 
 HaleDistrict core services fully restored.
+
+## 2026-03-09 TEACH02 validated
+
+### 2026-03-09 — TEACH02 Deployment and Differencing Disk Permission Fix
+
+Continued workstation deployment for the HD4 environment. The goal of this session was to bring **HD4-TEACH02** online using the established **Golden Image → Differencing Disk → VM pipeline**.
+
+#### Initial VM Creation Issue
+
+During the first attempt to create the VM, Hyper-V returned the following error:
+
+```
+The Virtual Machine Management service encountered an error while configuring the hard disk.
+User account does not have permission to open attachment.
+Access is denied (0x80070005)
+```
+
+Investigation revealed that the **NT VIRTUAL MACHINE\Virtual Machines** security principal did not have sufficient permissions on the newly created VM directory and differencing disk.
+
+This prevented Hyper-V from attaching the VHDX during VM creation.
+
+#### Resolution
+
+Permissions were corrected using the following command executed in an elevated PowerShell session on the host:
+
+```
+icacls "C:\HyperV\VMs\HD4-TEACH02" /grant "NT VIRTUAL MACHINE\Virtual Machines:(OI)(CI)F" /T
+```
+
+This successfully granted the Hyper-V service account full access to the VM directory and disk chain.
+
+Verification confirmed that the differencing disk correctly referenced its parent image:
+
+```
+Parent: C:\HyperV\GoldenImages\GOLD-WIN11-BUILD.vhdx
+Type: Differencing
+```
+
+#### VM Creation Success
+
+After correcting permissions, the **HD4-TEACH02** virtual machine was successfully created using:
+
+* **Generation:** 2
+* **Memory:** 4096 MB
+* **Network:** HD4-LAN
+* **Disk:** Differencing VHDX linked to GOLD-WIN11-BUILD
+
+The VM booted successfully and Windows initialized normally.
+
+#### Hostname Verification
+
+Inside the VM, the workstation name correctly appeared as:
+
+```
+HD4-TEACH02
+```
+
+No rename operation was required.
+
+#### Current State
+
+HD4 infrastructure now includes:
+
+```
+HD4-DC01
+HD4-RT01
+HD4-FS01
+HD4-ADM01
+HD4-TEACH01
+HD4-TEACH02
+```
+
+All core infrastructure machines remain operational, and the workstation provisioning pipeline has now been validated multiple times using the Golden Image + Differencing Disk workflow.
+
+#### Next Session Goals
+
+1. Join **HD4-TEACH02** to `haledistrict.local`.
+2. Validate baseline workstation configuration.
+3. Begin applying **HD4 workstation GPOs**.
+4. Verify **Desktop and Documents redirection to FS01**.
+5. Continue scaling the workstation deployment pipeline for additional teacher and student machines.
