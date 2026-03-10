@@ -286,3 +286,17 @@ This confirms that HD4 can rapidly deploy new workstations without reinstalling 
 2. Begin applying and testing **HD4 workstation GPOs**.
 3. Validate baseline workstation configuration and security policies.
 4. Continue documenting workstation lifecycle procedures for HD4.
+
+## 2026-03-09 Disk chain repair
+
+RT01 disk chain repair and boot restoration
+
+Recovered HD4-RT01 after Hyper-V differencing disk chain break caused by parent path mismatch. Reconnected parent disk (GOLD-UBUNTU-SRV.vhdx), repaired EFI boot entry, and confirmed successful Ubuntu 24.04 boot.
+
+Current infrastructure state:
+HD4-DC01  – Running
+HD4-FS01  – Running
+HD4-ADM01 – Running
+HD4-RT01  – Running
+
+HaleDistrict core services fully restored.
