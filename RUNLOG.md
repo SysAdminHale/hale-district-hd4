@@ -381,3 +381,56 @@ All core infrastructure machines remain operational, and the workstation provisi
 3. Begin applying **HD4 workstation GPOs**.
 4. Verify **Desktop and Documents redirection to FS01**.
 5. Continue scaling the workstation deployment pipeline for additional teacher and student machines.
+
+## 2026-03-10 — HD4-STUD01 and TEACH02 deployment + redirected folder GPO validation
+
+Created HD4-STUD01 and HD4-TEACH02 from GOLD-WIN11-BUILD using differencing disk workflow
+
+Differencing disk stored in C:\HyperV\VMs\HD4-STUD01
+
+VM created with:
+-Gen2
+-4GB RAM
+-Network: HD4-LAN
+
+Post-deployment:
+-Renamed workstation → HD4-STUD01
+-Joined domain → haledistrict.local
+-Moved computer object to HD4 → Computers → Workstations
+
+Infrastructure validation
+
+From STUD01 and TEACH02:
+-ping DC01 ✔
+-ping FS01 ✔
+-ping RT01 ✔
+-nslookup confirmed DNS → 10.0.0.10 (HD4-DC01)
+
+Student profile test
+-Logged in as Alice Johnson (student) and Tom Smith (teacher)
+-gpresult /r confirmed HD4 – Folder Redirection GPO applied
+
+Desktop redirected to:
+\\HD4-FS01\Users$\a.johnson\Desktop
+
+Documents redirected to:
+\\HD4-FS01\Users$\a.johnson\Documents
+
+Cross-workstation validation:
+-Logged into HD4-TEACH01 and HD4-TEACH02 with same teacher account
+-Confirmed redirected Desktop/Documents appear identically on both machines
+-Verified FS01 automatically creates user directories on first login
+
+Result
+Workstation pipeline now confirmed working end-to-end:
+
+Golden image
+→ differencing disk
+→ VM deployment
+→ domain join
+→ OU placement
+→ GPO application
+→ FS01 redirected storage
+
+Next step:
+Deploy HD4-STUD02 to confirm repeatability of the student workstation pipeline.
