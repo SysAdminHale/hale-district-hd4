@@ -434,3 +434,14 @@ Golden image
 
 Next step:
 Deploy HD4-STUD02 to confirm repeatability of the student workstation pipeline.
+
+## 2026-03-10 HD4 STUD02 validated
+
+• STUD02 workstation deployed from golden image using differencing disk
+• Computer renamed and domain joined
+• Machine moved to HD4 → Computers → Workstations
+• Student login successful
+• Folder redirection validated for Desktop and Documents
+• Storage confirmed on \\HD4-FS01\Users$
+• Cross-machine file visibility confirmed between STUD01 and STUD02
+• gpresult confirmed application of HD4 – Folder Redirection GPO
