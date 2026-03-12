@@ -445,3 +445,51 @@ Deploy HD4-STUD02 to confirm repeatability of the student workstation pipeline.
 • Storage confirmed on \\HD4-FS01\Users$
 • Cross-machine file visibility confirmed between STUD01 and STUD02
 • gpresult confirmed application of HD4 – Folder Redirection GPO
+
+## 2026-03-11 FS01 Storage quotes impliemnted
+
+HD4 — FS01 Storage Quotas Implemented
+
+Configured File Server Resource Manager (FSRM) quotas on FS01.
+
+Created quota template "Student Home Folder 2GB" and applied auto-apply quota to D:\Users to enforce a 2 GB hard limit for all student home directories.
+
+Configured quota template "Teacher Home Folder 10GB" and manually applied it to the teacher account folder (t.smith) to allow expanded storage.
+
+Verified:
+- Auto-apply quota correctly provisions new user folders.
+- Student folder (a.johnson) limited to 2 GB.
+- Teacher folder (t.smith) limited to 10 GB.
+
+This establishes centralized quota enforcement for redirected user folders within the HD4 file services architecture.
+
+## 2026-03-11 DFS Namespace implimented for user shares
+
+Implemented a DFS Namespace to provide a unified logical access path for user folder shares hosted on FS01.Installed DFS Namespace role service on HD4-FS01.
+
+Created domain-based namespace:
+\\haledistrict.local\Shares
+
+Added namespace folders:
+-Students
+-Teachers
+
+Linked namespace folders to underlying SMB shares on FS01:
+\\HD4-FS01\Students
+\\HD4-FS01\Teachers
+
+Purpose of DFS in HD4:
+-Abstracts the physical file server location from clients.
+-Allows future server migrations or additional file servers without changing user paths.
+-Provides a single consistent UNC path for GPO folder redirection.
+
+Folder redirection policies now reference:
+\\haledistrict.local\Shares\Students
+\\haledistrict.local\Shares\Teachers
+instead of direct server paths.
+
+Verified:
+-Namespace resolves correctly from domain clients.
+-Student and teacher redirected folders resolve through DFS.
+-Access and permissions function normally through the namespace.
+-This establishes the DFS abstraction layer for HD4 file services.
