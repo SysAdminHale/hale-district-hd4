@@ -508,3 +508,75 @@ Purpose of quota enforcement in HD4:
 -This establishes centralized storage quota enforcement for HD4 file services.
 
 -This milestone establishes the core HD4 file services architecture: DFS namespace abstraction, centralized user storage, and FSRM quota enforcement on FS01.
+
+## 2026-03-1012 — Pilot Ring GPO Deployment (Student CMD Restriction)
+Date: 2026-03-12
+Phase: HD4 — Group Policy Pilot Ring Implementation
+
+Objective:
+Implement a pilot-ring deployment model to safely test a student restriction GPO before broader rollout.
+
+Actions Completed:
+
+• Created new security group:
+  HD4-GPO-PilotRing
+
+• Added pilot members to the group:
+  - Alice Johnson
+  - HD4-STUD01
+  - HD4-TEACH01
+  - HD4-ADM01
+
+• Created new Group Policy Object:
+  HD4-STUDENTS-BlockCMD-Pilot
+
+• Configured policy setting:
+  User Configuration
+  → Administrative Templates
+  → System
+  → Prevent access to the command prompt = Enabled
+
+• Linked GPO to:
+  HD4 → Users → Students OU
+
+• Configured Security Filtering for staged deployment:
+  - Authenticated Users
+  - HD4-GPO-PilotRing
+
+• Performed validation and troubleshooting using:
+  gpupdate /force
+  gpresult /r
+  whoami /groups
+
+• Confirmed successful policy application:
+  Alice Johnson logged into HD4-STUD01 and received the expected restriction.
+
+Observed system message:
+"The command prompt has been disabled by your administrator."
+
+Key Concepts Reinforced:
+
+• Security filtering for controlled GPO deployment
+• Difference between user policy evaluation and computer policy evaluation
+• Importance of logon token refresh when group membership changes
+• Pilot-ring strategy for safe staged policy rollout
+• Use of gpresult and whoami for Group Policy troubleshooting
+
+Outcome:
+
+Successfully implemented and validated a pilot-ring deployment model for Group Policy in HaleDistrict HD4.  
+This pattern will be reused for future policy testing and expanded in HD5 for more advanced staged deployment strategies.
+
+Future Considerations (HD5+):
+
+• Separate pilot groups for clarity:
+  HDx-GPO-PilotUsers
+  HDx-GPO-PilotComputers
+
+• Introduce multi-stage rollout rings:
+  Ring 0 — IT
+  Ring 1 — Pilot
+  Ring 2 — Early adopters
+  Ring 3 — District-wide deployment
+
+• Evaluate Group Policy Loopback Processing for student workstation environments.
