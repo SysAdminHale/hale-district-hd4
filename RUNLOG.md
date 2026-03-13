@@ -509,8 +509,8 @@ Purpose of quota enforcement in HD4:
 
 -This milestone establishes the core HD4 file services architecture: DFS namespace abstraction, centralized user storage, and FSRM quota enforcement on FS01.
 
-## 2026-03-1012 — Pilot Ring GPO Deployment (Student CMD Restriction)
-Date: 2026-03-12
+## 2026-03-2026 — Pilot Ring GPO Deployment (Student CMD Restriction)
+
 Phase: HD4 — Group Policy Pilot Ring Implementation
 
 Objective:
@@ -580,3 +580,70 @@ Future Considerations (HD5+):
   Ring 3 — District-wide deployment
 
 • Evaluate Group Policy Loopback Processing for student workstation environments.
+
+## 2026-03-2026 Loopback GPO Implementation (Student Workstation Environment)
+
+Phase: HD4 — Advanced Group Policy Architecture
+
+Objective:
+Implement and validate Group Policy Loopback Processing to ensure workstation-based control of the user environment.
+
+Actions Completed:
+
+• Created new GPO:
+  HD4-STUDENT-WORKSTATION-LOOPBACK
+
+• Configured loopback processing:
+  Computer Configuration
+  → Administrative Templates
+  → System
+  → Group Policy
+  → Configure user Group Policy loopback processing mode = Enabled
+  Mode: Replace
+
+• Added user-environment restriction for testing loopback behavior:
+  User Configuration
+  → Administrative Templates
+  → Start Menu and Taskbar
+  → Remove Run menu from Start Menu = Enabled
+
+• Linked GPO to workstation OU:
+  HD4 → Computers → Workstations
+
+• Forced policy refresh on test machines:
+  gpupdate /force
+
+Validation Tests:
+
+• Logged into TEACH01 as Administrator
+  Result: Run command blocked
+
+• Logged into STUD01 as Alice Johnson
+  Result: Run command blocked
+
+Observed system message:
+"This operation has been cancelled due to restrictions in effect on this computer."
+
+Interpretation:
+
+Loopback processing (Replace mode) is functioning correctly.
+User policies are now determined by the computer OU rather than the user OU.
+
+Key Concepts Reinforced:
+
+• Difference between User Configuration and Computer Configuration policies
+• Loopback Merge vs Replace behavior
+• Workstation-driven user environment enforcement
+• GPO processing behavior during user logon
+• Importance of OU design in policy architecture
+
+Outcome:
+
+Successfully implemented loopback-based workstation control of user environment in HaleDistrict HD4.  
+The environment now mirrors real-world school district lab policy architecture.
+
+Next Planned Focus:
+
+• Resume HD4 scripting development
+• Expand workstation baseline automation
+• Integrate healthcheck and validation scripts across HD4 infrastructure
