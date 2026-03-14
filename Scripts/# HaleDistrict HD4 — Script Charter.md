@@ -168,3 +168,63 @@ Avoid
 - Giant multi-purpose scripts
 - Mixing baseline deployment with broad health validation
 - Embedding unrelated fixes inside validation logic
+
+## 2026-03-13 — HD4 HealthCheck Scripting Suite completed and operator diagnostic command established
+
+Completed the first full HealthCheck framework for HaleDistrict HD4.
+
+Created shared HealthCheck library:
+- HD4-HealthCheck-Lib.ps1
+
+Refactored HealthCheck scripts to use shared library functions for:
+- standardized headers
+- section formatting
+- PASS / WARN / FAIL result collection
+- scorecard generation
+- CSV / TXT artifact export
+- consistent exit code handling
+
+Validated and stabilized the following HealthCheck scripts:
+- HD4-HealthCheck-Core.ps1
+- HD4-HealthCheck-Workstation.ps1
+- HD4-HealthCheck-FS01.ps1
+- HD4-HealthCheck-DFS.ps1
+- HD4-HealthCheck-RT01.ps1
+
+Built centralized script share on FS01:
+- \\HD4-FS01\Scripts$
+- Confirmed access from ADM01 and other HD4 systems
+- Established shared folder structure for Baseline, HealthChecks, Lib, Remediation, Features, Config, and Logs
+
+Built orchestrator script:
+- HD4-HealthCheck-All.ps1
+
+Initial orchestrator run exposed an important execution-model issue:
+- FS01 HealthCheck was being launched from ADM01 instead of running on FS01
+- This caused false failures for host-local checks such as D:\ paths, SMB shares, and local storage validation
+
+Reworked HD4-HealthCheck-All.ps1 to support host-aware execution:
+- Core, Workstation, DFS, and RT01 HealthChecks run locally from ADM01
+- FS01 HealthCheck runs remotely on HD4-FS01
+- Corrected process exit code capture for local child PowerShell executions
+- Re-tested suite successfully
+
+Built operator-facing top-level diagnostic command:
+- HD4-DIAGNOSE.ps1
+
+Purpose of HD4-DIAGNOSE:
+- run the full HealthCheck suite
+- interpret the suite-level result
+- present a clean district-level status message for operator use
+
+Final successful district-level result:
+- PASS: 5
+- FAIL: 0
+- ERROR: 0
+- HD4 suite result: PASS
+- District Status: HEALTHY
+- HALEDISTRICT HD4 IS OPERATIONAL.
+
+Key architectural outcome:
+- HD4 now has a modular HealthCheck framework with shared library logic, role-based validation, centralized logging, host-aware orchestration, and an operator-facing diagnostic command.
+- This establishes the first real operations / monitoring layer for HaleDistrict.
