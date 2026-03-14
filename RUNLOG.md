@@ -647,3 +647,138 @@ Next Planned Focus:
 • Resume HD4 scripting development
 • Expand workstation baseline automation
 • Integrate healthcheck and validation scripts across HD4 infrastructure
+
+## 2026-03-13 — HD4 HealthCheck Suite completed and operator diagnostic command established
+
+Completed the first full HealthCheck framework for HaleDistrict HD4.
+
+Created shared HealthCheck library:
+- HD4-HealthCheck-Lib.ps1
+
+Refactored HealthCheck scripts to use shared library functions for:
+- standardized headers
+- section formatting
+- PASS / WARN / FAIL result collection
+- scorecard generation
+- CSV / TXT artifact export
+- consistent exit code handling
+
+Validated and stabilized the following HealthCheck scripts:
+- HD4-HealthCheck-Core.ps1
+- HD4-HealthCheck-Workstation.ps1
+- HD4-HealthCheck-FS01.ps1
+- HD4-HealthCheck-DFS.ps1
+- HD4-HealthCheck-RT01.ps1
+
+Built centralized script share on FS01:
+- \\HD4-FS01\Scripts$
+- Confirmed access from ADM01 and other HD4 systems
+- Established shared folder structure for Baseline, HealthChecks, Lib, Remediation, Features, Config, and Logs
+
+Built orchestrator script:
+- HD4-HealthCheck-All.ps1
+
+Initial orchestrator run exposed an important execution-model issue:
+- FS01 HealthCheck was being launched from ADM01 instead of running on FS01
+- This caused false failures for host-local checks such as D:\ paths, SMB shares, and local storage validation
+
+Reworked HD4-HealthCheck-All.ps1 to support host-aware execution:
+- Core, Workstation, DFS, and RT01 HealthChecks run locally from ADM01
+- FS01 HealthCheck runs remotely on HD4-FS01
+- Corrected process exit code capture for local child PowerShell executions
+- Re-tested suite successfully
+
+Built operator-facing top-level diagnostic command:
+- HD4-DIAGNOSE.ps1
+
+Purpose of HD4-DIAGNOSE:
+- run the full HealthCheck suite
+- interpret the suite-level result
+- present a clean district-level status message for operator use
+
+Final successful district-level result:
+- PASS: 5
+- FAIL: 0
+- ERROR: 0
+- HD4 suite result: PASS
+- District Status: HEALTHY
+- HALEDISTRICT HD4 IS OPERATIONAL.
+
+Key architectural outcome:
+- HD4 now has a modular HealthCheck framework with shared library logic, role-based validation, centralized logging, host-aware orchestration, and an operator-facing diagnostic command.
+- This establishes the first real operations / monitoring layer for HaleDistrict.
+
+## 2026-03-13 Phase: HD4 Final Infrastructure Layer — RT01 Network Segmentation + Firewall
+
+Objective
+Implement routed network segmentation on RT01 and enforce inter-subnet policy using iptables. Ensure rules persist across reboot.
+
+Subnet Design
+- Servers / Core LAN: 10.0.0.0/24 (Gateway: 10.0.0.1)
+- Admin:              10.0.10.0/24 (Gateway: 10.0.10.1)
+- Teachers:           10.0.20.0/24 (Gateway: 10.0.20.1)
+- Students:           10.0.30.0/24 (Gateway: 10.0.30.1)
+
+RT01 Configuration
+Configured RT01 as the Layer-3 gateway for all internal subnets.
+
+Key configuration steps:
+- Assigned gateway IP addresses to RT01 interfaces
+- Enabled IPv4 forwarding (net.ipv4.ip_forward=1)
+- Configured NAT (MASQUERADE) on WAN interface for internet access
+- Implemented firewall policy using iptables
+- Set default FORWARD policy to DROP
+
+Firewall Policy Implemented
+Traffic control rules implemented to simulate a district-style segmented network:
+
+- Admin subnet (10.0.10.0/24): full access to all networks
+- Teachers subnet (10.0.20.0/24): access to Servers + Internet
+- Students subnet (10.0.30.0/24): Internet access only
+- Students blocked from Servers subnet (10.0.0.0/24)
+
+Persistence
+Installed iptables-persistent and saved active rules to:
+/etc/iptables/rules.v4
+
+Reload verified using:
+sudo netfilter-persistent reload
+
+Active rule set confirmed via:
+sudo iptables -S
+
+Validation
+Connectivity testing performed:
+
+- Internal routing between subnets verified
+- Internet access verified through RT01 NAT
+- Firewall policy validated through expected allow/deny behavior
+
+Outcome
+RT01 now functions as:
+
+- Layer-3 router for HaleDistrict internal networks
+- Stateful firewall enforcing network segmentation
+- NAT gateway providing outbound internet access
+
+HD4 Infrastructure Status
+- DC01 Active Directory: operational
+- FS01 file services and shares: operational
+- ADM01 administrative workstation: operational
+- Workstation baseline scripting: operational
+- Golden image + differencing disk workflow: operational
+- Baseline GPO configuration: operational
+- RT01 routing + firewall: operational
+- Segmented network architecture: operational
+
+HD4 core infrastructure build completed.
+HaleDistrict now operates with routed subnet segmentation, NAT internet access, and enforced traffic policy.
+
+HD4 Closure — 2026-03-14
+
+All planned HD4 infrastructure components are now operational.
+RT01 provides routed subnet segmentation, NAT internet access, and enforced firewall policy.
+Active Directory, file services, workstation baseline configuration, and network routing are fully functional.
+Firewall rules are persisted using iptables-persistent and validated after reload.
+HaleDistrict HD4 now operates as a segmented district-style lab network.
+HD4 development phase concluded; preparation for HD5 architecture planning begins.
