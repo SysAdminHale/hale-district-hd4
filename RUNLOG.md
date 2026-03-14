@@ -782,3 +782,12 @@ Active Directory, file services, workstation baseline configuration, and network
 Firewall rules are persisted using iptables-persistent and validated after reload.
 HaleDistrict HD4 now operates as a segmented district-style lab network.
 HD4 development phase concluded; preparation for HD5 architecture planning begins.
+
+## 2026-03-14 — HD4 Environment Archived
+
+• Completed HD4 infrastructure build.
+• Implemented VLAN segmentation and firewall rules on RT01.
+• Finalized workstation baseline scripts and healthcheck automation.
+• Copied full VM environment and project documentation to T7 archive.
+• HD4 frozen as a reproducible infrastructure snapshot.
+• Preparing to begin HD5 architecture planning.
