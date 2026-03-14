@@ -5,8 +5,8 @@ Scope       : HaleDistrict HD4
 Role        : Workstation
 Author      : HaleDistrict
 Created     : 2026-03-13
-Version     : 0.3.0
-Dependencies: Domain join completed, DNS resolution available, local administrative rights
+Version     : 0.4.0
+Dependencies: HD4-HealthCheck-Lib.ps1, domain join completed, DNS resolution available, local administrative rights
 
 Run Context:
 - Intended machine(s): HD4 workstations (e.g. STUD01, TEACH01)
@@ -21,12 +21,8 @@ Notes:
 
 [CmdletBinding()]
 param(
-    [string]$OutputPath = "\\HD4-FS01\Scripts$\Logs\WorkstationHealth",
-    [switch]$VerboseOutput
+    [string]$OutputPath = "\\HD4-FS01\Scripts$\Logs\WorkstationHealth"
 )
-
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
 
 trap {
     Write-Host ""
@@ -35,89 +31,24 @@ trap {
 }
 
 # -------------------------------
-# Result store
+# Import shared HealthCheck library
 # -------------------------------
-$script:Results = [System.Collections.Generic.List[object]]::new()
+. "\\HD4-FS01\Scripts$\Lib\HD4-HealthCheck-Lib.ps1"
 
-# -------------------------------
-# Helpers
-# -------------------------------
-function Add-Result {
-    param(
-        [Parameter(Mandatory)][ValidateSet("PASS","WARN","FAIL")] [string]$Status,
-        [Parameter(Mandatory)][string]$Check,
-        [Parameter(Mandatory)][string]$Message,
-        $Data = ""
-    )
-
-    $dataText = ""
-    if ($null -ne $Data) {
-        if ($Data -is [string]) {
-            $dataText = $Data
-        }
-        else {
-            $dataText = ($Data | Out-String).Trim()
-        }
-    }
-
-    $script:Results.Add([pscustomobject]@{
-        Time    = (Get-Date).ToString("s")
-        Status  = $Status
-        Check   = $Check
-        Message = $Message
-        Data    = $dataText
-    }) | Out-Null
-}
-
-function Safe-Run {
-    param(
-        [Parameter(Mandatory)][string]$CheckName,
-        [Parameter(Mandatory)][scriptblock]$ScriptBlock
-    )
-
-    try {
-        & $ScriptBlock
-    }
-    catch {
-        Add-Result -Status "FAIL" -Check $CheckName -Message "Unhandled exception" -Data $_.Exception.Message
-        if ($VerboseOutput) {
-            Write-Host "[FAIL] $CheckName :: $($_.Exception.Message)" -ForegroundColor Red
-        }
-    }
-}
-
-function Write-Section {
-    param([Parameter(Mandatory)][string]$Title)
-    Write-Host ""
-    Write-Host ("=" * 72)
-    Write-Host $Title
-    Write-Host ("=" * 72)
-}
-
-function Test-IsElevated {
-    try {
-        $identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
-    catch {
-        return $false
-    }
-}
+Initialize-HealthCheck `
+    -ScriptName "HD4-HealthCheck-Workstation.ps1" `
+    -Scope "HaleDistrict HD4" `
+    -Role "Workstation" `
+    -Version "0.4.0" `
+    -OutputPath $OutputPath
 
 # -------------------------------
-# Header / Metadata
+# Script metadata / environment
 # -------------------------------
-$ScriptName    = "HD4-HealthCheck-Workstation.ps1"
-$ScriptVersion = "0.3.0"
-$Now           = Get-Date
-
 $ComputerName = $env:COMPUTERNAME
-$UserName     = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-$IsAdmin      = Test-IsElevated
-
 $DomainJoined = $false
 $DomainName   = ""
+
 try {
     $cs = Get-CimInstance Win32_ComputerSystem
     $DomainJoined = [bool]$cs.PartOfDomain
@@ -125,16 +56,28 @@ try {
 }
 catch { }
 
-Write-Section $ScriptName
-Write-Host "Scope   : HaleDistrict HD4"
-Write-Host "Version : $ScriptVersion"
-Write-Host "Host    : $ComputerName"
-Write-Host "User    : $UserName"
-Write-Host "Time    : $($Now.ToString('yyyy-MM-dd HH:mm:ss'))"
-Write-Host "Admin   : $IsAdmin"
-Write-Host "Joined  : $DomainJoined"
-Write-Host "Domain  : $DomainName"
-Write-Host "Output  : $OutputPath"
+$CriticalHosts = @("HD4-DC01", "HD4-FS01", "HD4-RT01")
+
+$PathChecks = [ordered]@{
+    "Path-SYSVOL"   = "\\HD4-DC01\SYSVOL"
+    "Path-Scripts"  = "\\HD4-FS01\Scripts$"
+    "Path-Shares"   = "\\haledistrict.local\Shares"
+    "Path-Students" = "\\haledistrict.local\Shares\Students"
+    "Path-Teachers" = "\\haledistrict.local\Shares\Teachers"
+}
+
+# -------------------------------
+# Script-specific helpers
+# -------------------------------
+function Test-HostReachable {
+    param([string]$ComputerName)
+    return Test-Connection -ComputerName $ComputerName -Count 1 -Quiet -ErrorAction SilentlyContinue
+}
+
+# -------------------------------
+# Startup banner
+# -------------------------------
+Write-HealthCheckHeader
 
 # -------------------------------
 # 1) Execution Context
@@ -143,11 +86,11 @@ Write-Section "1) Execution Context"
 
 Safe-Run -CheckName "Elevation" -ScriptBlock {
     Write-Host "  Checking elevation..."
-    if ($IsAdmin) {
-        Add-Result PASS "Elevation" "Session is elevated" ""
+    if (Test-IsElevated) {
+        Add-Result -Status "PASS" -Check "Elevation" -Message "Session is elevated." -Data $ComputerName
     }
     else {
-        Add-Result FAIL "Elevation" "Session is not elevated. Run PowerShell as Administrator." ""
+        Add-Result -Status "FAIL" -Check "Elevation" -Message "Session is not elevated. Run PowerShell as Administrator." -Data $ComputerName
     }
 }
 
@@ -159,42 +102,42 @@ Write-Section "2) Identity & Domain Sanity"
 Safe-Run -CheckName "HostnamePattern" -ScriptBlock {
     Write-Host "  Checking hostname pattern..."
     if ($ComputerName -match "^(STUD|TEACH)\d{2}$") {
-        Add-Result PASS "HostnamePattern" "Hostname matches expected workstation convention" $ComputerName
+        Add-Result -Status "PASS" -Check "HostnamePattern" -Message "Hostname matches expected workstation convention." -Data $ComputerName
     }
     else {
-        Add-Result WARN "HostnamePattern" "Hostname does not match expected (STUD## / TEACH##). OK during staging." $ComputerName
+        Add-Result -Status "WARN" -Check "HostnamePattern" -Message "Hostname does not match expected (STUD## / TEACH##). OK during staging or admin testing." -Data $ComputerName
     }
 }
 
 Safe-Run -CheckName "DomainJoined" -ScriptBlock {
     Write-Host "  Checking domain join status..."
     if ($DomainJoined) {
-        Add-Result PASS "DomainJoined" "Machine is joined to a domain" $DomainName
+        Add-Result -Status "PASS" -Check "DomainJoined" -Message "Machine is joined to a domain." -Data $DomainName
     }
     else {
-        Add-Result FAIL "DomainJoined" "Machine is NOT domain-joined (validation intended post-join)" ""
+        Add-Result -Status "FAIL" -Check "DomainJoined" -Message "Machine is NOT domain-joined (validation intended post-join)." -Data $ComputerName
     }
 }
 
 Safe-Run -CheckName "ExpectedDomain" -ScriptBlock {
     Write-Host "  Checking expected domain..."
     if (-not $DomainJoined) {
-        Add-Result WARN "ExpectedDomain" "Skipped expected-domain validation because machine is not domain-joined" ""
+        Add-Result -Status "WARN" -Check "ExpectedDomain" -Message "Skipped expected-domain validation because machine is not domain-joined." -Data $ComputerName
         return
     }
 
     if ($DomainName -ieq "haledistrict.local") {
-        Add-Result PASS "ExpectedDomain" "Machine is joined to expected domain" $DomainName
+        Add-Result -Status "PASS" -Check "ExpectedDomain" -Message "Machine is joined to expected domain." -Data $DomainName
     }
     else {
-        Add-Result FAIL "ExpectedDomain" "Machine is joined to an unexpected domain" $DomainName
+        Add-Result -Status "FAIL" -Check "ExpectedDomain" -Message "Machine is joined to an unexpected domain." -Data $DomainName
     }
 }
 
 Safe-Run -CheckName "SecureChannel" -ScriptBlock {
     Write-Host "  Testing secure channel..."
     if (-not $DomainJoined) {
-        Add-Result WARN "SecureChannel" "Skipped (not domain-joined)" ""
+        Add-Result -Status "WARN" -Check "SecureChannel" -Message "Skipped because machine is not domain-joined." -Data $ComputerName
         return
     }
 
@@ -203,10 +146,10 @@ Safe-Run -CheckName "SecureChannel" -ScriptBlock {
     catch { $ok = $false }
 
     if ($ok) {
-        Add-Result PASS "SecureChannel" "Computer secure channel to domain is healthy" ""
+        Add-Result -Status "PASS" -Check "SecureChannel" -Message "Computer secure channel to domain is healthy." -Data $ComputerName
     }
     else {
-        Add-Result FAIL "SecureChannel" "Computer secure channel appears broken" ""
+        Add-Result -Status "FAIL" -Check "SecureChannel" -Message "Computer secure channel appears broken." -Data $ComputerName
     }
 }
 
@@ -219,7 +162,7 @@ Safe-Run -CheckName "ActiveNICIPv4" -ScriptBlock {
     Write-Host "  Checking active NIC and IPv4..."
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
     if (-not $adapters) {
-        Add-Result FAIL "ActiveNICIPv4" "No active network adapters found" ""
+        Add-Result -Status "FAIL" -Check "ActiveNICIPv4" -Message "No active network adapters found." -Data ""
         return
     }
 
@@ -230,10 +173,10 @@ Safe-Run -CheckName "ActiveNICIPv4" -ScriptBlock {
     }
 
     if (-not $ipInfo) {
-        Add-Result WARN "ActiveNICIPv4" "Active NIC found but no usable IPv4 detected (or APIPA)" ($adapters.Name -join ", ")
+        Add-Result -Status "WARN" -Check "ActiveNICIPv4" -Message "Active NIC found but no usable IPv4 detected (or APIPA)." -Data ($adapters.Name -join ", ")
     }
     else {
-        Add-Result PASS "ActiveNICIPv4" "Detected active NIC(s) and IPv4 address(es)" (($ipInfo | ForEach-Object { "$($_.Interface):$($_.IPAddress)" }) -join "; ")
+        Add-Result -Status "PASS" -Check "ActiveNICIPv4" -Message "Detected active NIC(s) and IPv4 address(es)." -Data (($ipInfo | ForEach-Object { "$($_.Interface):$($_.IPAddress)" }) -join "; ")
     }
 }
 
@@ -241,10 +184,10 @@ Safe-Run -CheckName "DefaultGateway" -ScriptBlock {
     Write-Host "  Checking default gateway..."
     $routes = Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue | Sort-Object -Property RouteMetric
     if ($routes) {
-        Add-Result PASS "DefaultGateway" "Default route present" $routes[0].NextHop
+        Add-Result -Status "PASS" -Check "DefaultGateway" -Message "Default route present." -Data $routes[0].NextHop
     }
     else {
-        Add-Result FAIL "DefaultGateway" "No default route (0.0.0.0/0) found" ""
+        Add-Result -Status "FAIL" -Check "DefaultGateway" -Message "No default route (0.0.0.0/0) found." -Data ""
     }
 }
 
@@ -255,14 +198,12 @@ Safe-Run -CheckName "DnsServers" -ScriptBlock {
         Select-Object -ExpandProperty ServerAddresses
 
     if ($dns) {
-        Add-Result PASS "DnsServers" "DNS servers configured" ($dns -join ", ")
+        Add-Result -Status "PASS" -Check "DnsServers" -Message "DNS servers configured." -Data ($dns -join ", ")
     }
     else {
-        Add-Result FAIL "DnsServers" "No IPv4 DNS servers configured" ""
+        Add-Result -Status "FAIL" -Check "DnsServers" -Message "No IPv4 DNS servers configured." -Data ""
     }
 }
-
-$CriticalHosts = @("HD4-DC01", "HD4-FS01", "HD4-RT01")
 
 foreach ($h in $CriticalHosts) {
     Safe-Run -CheckName "Resolve-$h" -ScriptBlock {
@@ -270,10 +211,10 @@ foreach ($h in $CriticalHosts) {
         try {
             $res = Resolve-DnsName $h -ErrorAction Stop
             $ips = ($res | Where-Object { $_.IPAddress } | Select-Object -ExpandProperty IPAddress) -join ", "
-            Add-Result PASS "Resolve-$h" "Name resolves" $ips
+            Add-Result -Status "PASS" -Check "Resolve-$h" -Message "Name resolves." -Data $ips
         }
         catch {
-            Add-Result WARN "Resolve-$h" "Name did not resolve (may be expected early)" $_.Exception.Message
+            Add-Result -Status "WARN" -Check "Resolve-$h" -Message "Name did not resolve (may be expected early or signal only)." -Data $_.Exception.Message
         }
     }
 }
@@ -282,14 +223,14 @@ foreach ($h in $CriticalHosts) {
     Safe-Run -CheckName "Ping-$h" -ScriptBlock {
         Write-Host "  Pinging $h..."
         $ok = $false
-        try { $ok = Test-Connection -ComputerName $h -Count 1 -Quiet -ErrorAction Stop }
+        try { $ok = Test-HostReachable -ComputerName $h }
         catch { $ok = $false }
 
         if ($ok) {
-            Add-Result PASS "Ping-$h" "ICMP reachable" ""
+            Add-Result -Status "PASS" -Check "Ping-$h" -Message "ICMP reachable." -Data $h
         }
         else {
-            Add-Result WARN "Ping-$h" "ICMP not reachable (may be blocked; signal only)" ""
+            Add-Result -Status "WARN" -Check "Ping-$h" -Message "ICMP not reachable (may be blocked; signal only)." -Data $h
         }
     }
 }
@@ -299,23 +240,15 @@ foreach ($h in $CriticalHosts) {
 # -------------------------------
 Write-Section "4) File Services & Automation Paths"
 
-$PathChecks = [ordered]@{
-    "Path-SYSVOL"   = "\\HD4-DC01\SYSVOL"
-    "Path-Scripts"  = "\\HD4-FS01\Scripts$"
-    "Path-Shares"   = "\\haledistrict.local\Shares"
-    "Path-Students" = "\\haledistrict.local\Shares\Students"
-    "Path-Teachers" = "\\haledistrict.local\Shares\Teachers"
-}
-
 foreach ($label in $PathChecks.Keys) {
     $path = $PathChecks[$label]
     Safe-Run -CheckName $label -ScriptBlock {
         Write-Host "  Testing path: $path..."
         if (Test-Path $path) {
-            Add-Result PASS $label "Path accessible" $path
+            Add-Result -Status "PASS" -Check $label -Message "Path accessible." -Data $path
         }
         else {
-            Add-Result FAIL $label "Path not accessible" $path
+            Add-Result -Status "FAIL" -Check $label -Message "Path not accessible." -Data $path
         }
     }
 }
@@ -329,15 +262,15 @@ Safe-Run -CheckName "TimeServiceStatus" -ScriptBlock {
     Write-Host "  Checking w32time service..."
     $svc = Get-Service w32time -ErrorAction SilentlyContinue
     if (-not $svc) {
-        Add-Result FAIL "TimeServiceStatus" "w32time service not found" ""
+        Add-Result -Status "FAIL" -Check "TimeServiceStatus" -Message "w32time service not found." -Data ""
         return
     }
 
     if ($svc.Status -eq "Running") {
-        Add-Result PASS "TimeServiceStatus" "w32time is running" ""
+        Add-Result -Status "PASS" -Check "TimeServiceStatus" -Message "w32time is running." -Data $svc.Status
     }
     else {
-        Add-Result WARN "TimeServiceStatus" "w32time is not running" $svc.Status
+        Add-Result -Status "WARN" -Check "TimeServiceStatus" -Message "w32time is not running." -Data $svc.Status
     }
 }
 
@@ -347,18 +280,18 @@ Safe-Run -CheckName "TimeSource" -ScriptBlock {
         $src = (w32tm /query /source) 2>$null
         if ($src) {
             if ($DomainJoined -and ($src -match "Local CMOS Clock")) {
-                Add-Result WARN "TimeSource" "Time source is Local CMOS Clock (unexpected long-term for domain-joined)" $src.Trim()
+                Add-Result -Status "WARN" -Check "TimeSource" -Message "Time source is Local CMOS Clock (unexpected long-term for domain-joined)." -Data $src.Trim()
             }
             else {
-                Add-Result PASS "TimeSource" "Time source reported" $src.Trim()
+                Add-Result -Status "PASS" -Check "TimeSource" -Message "Time source reported." -Data $src.Trim()
             }
         }
         else {
-            Add-Result WARN "TimeSource" "Unable to query time source" ""
+            Add-Result -Status "WARN" -Check "TimeSource" -Message "Unable to query time source." -Data ""
         }
     }
     catch {
-        Add-Result WARN "TimeSource" "Unable to query time source" $_.Exception.Message
+        Add-Result -Status "WARN" -Check "TimeSource" -Message "Unable to query time source." -Data $_.Exception.Message
     }
 }
 
@@ -366,16 +299,16 @@ Safe-Run -CheckName "FirewallProfiles" -ScriptBlock {
     Write-Host "  Checking firewall profiles..."
     $profiles = Get-NetFirewallProfile -ErrorAction SilentlyContinue
     if (-not $profiles) {
-        Add-Result WARN "FirewallProfiles" "Unable to read firewall profiles" ""
+        Add-Result -Status "WARN" -Check "FirewallProfiles" -Message "Unable to read firewall profiles." -Data ""
         return
     }
 
     $disabled = $profiles | Where-Object { $_.Enabled -ne $true }
     if ($disabled) {
-        Add-Result FAIL "FirewallProfiles" "One or more firewall profiles are disabled" (($disabled | Select-Object -ExpandProperty Name) -join ", ")
+        Add-Result -Status "FAIL" -Check "FirewallProfiles" -Message "One or more firewall profiles are disabled." -Data (($disabled | Select-Object -ExpandProperty Name) -join ", ")
     }
     else {
-        Add-Result PASS "FirewallProfiles" "All firewall profiles are enabled" (($profiles | Select-Object -ExpandProperty Name) -join ", ")
+        Add-Result -Status "PASS" -Check "FirewallProfiles" -Message "All firewall profiles are enabled." -Data (($profiles | Select-Object -ExpandProperty Name) -join ", ")
     }
 }
 
@@ -383,15 +316,15 @@ Safe-Run -CheckName "DefenderService" -ScriptBlock {
     Write-Host "  Checking WinDefend..."
     $svc = Get-Service WinDefend -ErrorAction SilentlyContinue
     if (-not $svc) {
-        Add-Result WARN "DefenderService" "WinDefend not found (may be replaced or disabled by policy)" ""
+        Add-Result -Status "WARN" -Check "DefenderService" -Message "WinDefend not found (may be replaced or disabled by policy)." -Data ""
         return
     }
 
     if ($svc.Status -eq "Running") {
-        Add-Result PASS "DefenderService" "WinDefend is running" ""
+        Add-Result -Status "PASS" -Check "DefenderService" -Message "WinDefend is running." -Data $svc.Status
     }
     else {
-        Add-Result WARN "DefenderService" "WinDefend is not running" $svc.Status
+        Add-Result -Status "WARN" -Check "DefenderService" -Message "WinDefend is not running." -Data $svc.Status
     }
 }
 
@@ -405,14 +338,14 @@ Safe-Run -CheckName "Smb1Disabled" -ScriptBlock {
 
     if ($smb1) {
         if ($smb1.State -eq "Disabled") {
-            Add-Result PASS "Smb1Disabled" "SMB1Protocol is disabled" ""
+            Add-Result -Status "PASS" -Check "Smb1Disabled" -Message "SMB1Protocol is disabled." -Data $smb1.State
         }
         else {
-            Add-Result WARN "Smb1Disabled" "SMB1Protocol is not disabled (recommend disabling)" $smb1.State
+            Add-Result -Status "WARN" -Check "Smb1Disabled" -Message "SMB1Protocol is not disabled (recommend disabling)." -Data $smb1.State
         }
     }
     else {
-        Add-Result WARN "Smb1Disabled" "Unable to query SMB1Protocol feature state" ""
+        Add-Result -Status "WARN" -Check "Smb1Disabled" -Message "Unable to query SMB1Protocol feature state." -Data ""
     }
 }
 
@@ -425,10 +358,10 @@ Safe-Run -CheckName "LocalAdminsMembership" -ScriptBlock {
     Write-Host "  Enumerating local Administrators group..."
     try {
         $admins = Get-LocalGroupMember -Group "Administrators" -ErrorAction Stop | Select-Object -ExpandProperty Name
-        Add-Result PASS "LocalAdminsMembership" "Enumerated local Administrators group" ($admins -join ", ")
+        Add-Result -Status "PASS" -Check "LocalAdminsMembership" -Message "Enumerated local Administrators group." -Data ($admins -join ", ")
     }
     catch {
-        Add-Result WARN "LocalAdminsMembership" "Unable to enumerate local Administrators group" $_.Exception.Message
+        Add-Result -Status "WARN" -Check "LocalAdminsMembership" -Message "Unable to enumerate local Administrators group." -Data $_.Exception.Message
     }
 }
 
@@ -442,69 +375,24 @@ Safe-Run -CheckName "GpResult-Computer" -ScriptBlock {
     try {
         $out = (gpresult /r /scope computer) 2>$null
         if ($out) {
-            Add-Result PASS "GpResult-Computer" "gpresult executed successfully" ""
+            Add-Result -Status "PASS" -Check "GpResult-Computer" -Message "gpresult executed successfully." -Data ""
         }
         else {
-            Add-Result WARN "GpResult-Computer" "gpresult returned no output" ""
+            Add-Result -Status "WARN" -Check "GpResult-Computer" -Message "gpresult returned no output." -Data ""
         }
     }
     catch {
-        Add-Result WARN "GpResult-Computer" "Unable to run gpresult" $_.Exception.Message
+        Add-Result -Status "WARN" -Check "GpResult-Computer" -Message "Unable to run gpresult." -Data $_.Exception.Message
     }
 }
 
 # -------------------------------
-# Scorecard & Output
+# Summary
 # -------------------------------
-$Results = $script:Results.ToArray()
-
-Write-Section "Scorecard"
-
-$pass = @($Results | Where-Object Status -eq "PASS").Count
-$warn = @($Results | Where-Object Status -eq "WARN").Count
-$fail = @($Results | Where-Object Status -eq "FAIL").Count
-
-Write-Host ("PASS: {0}  |  WARN: {1}  |  FAIL: {2}" -f $pass, $warn, $fail)
-Write-Host ""
-Write-Host "NOTE: This script is validation-first. Remediation is deferred unless explicitly approved."
-Write-Host ""
-
-$Results |
-    Sort-Object Time |
-    Select-Object Time, Status, Check, Message, Data |
-    Format-Table -AutoSize
-
-Write-Section "Summary by status"
-$Results |
-    Group-Object Status |
-    Sort-Object Name |
-    Format-Table @{Label="Status";Expression={$_.Name}}, Count -AutoSize
+Write-HealthCheckScorecard -Note "Validation-first. No remediation performed."
+Export-HealthCheckResults -OutputPath $OutputPath -BaseName "HD4-HealthCheck-Workstation.ps1"
 
 # -------------------------------
-# Save artifacts
+# Exit codes per Charter §4
 # -------------------------------
-try {
-    New-Item -ItemType Directory -Force -Path $OutputPath | Out-Null
-
-    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $csvPath   = Join-Path $OutputPath ("HD4-HealthCheck-Workstation-{0}.csv" -f $timestamp)
-    $txtPath   = Join-Path $OutputPath ("HD4-HealthCheck-Workstation-{0}.txt" -f $timestamp)
-
-    $Results | Export-Csv -NoTypeInformation -Path $csvPath
-
-    $Results |
-        Sort-Object Time |
-        Select-Object Time, Status, Check, Message, Data |
-        Out-String | Set-Content -Path $txtPath -Encoding UTF8
-
-    Write-Host ""
-    Write-Host "Saved CSV : $csvPath"
-    Write-Host "Saved TXT : $txtPath"
-}
-catch {
-    Write-Host ""
-    Write-Host ("WARN: Unable to write output file(s): {0}" -f $_.Exception.Message) -ForegroundColor Yellow
-}
-
-if ($fail -gt 0) { exit 1 }
-exit 0
+exit (Get-HealthCheckExitCode)
